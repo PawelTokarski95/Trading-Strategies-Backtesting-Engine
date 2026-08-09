@@ -1,3 +1,5 @@
+# Trading Strategies Backtesting Engine
+
 A Python-based quantitative research framework for backtesting, evaluating, and optimizing systematic trading strategies across single-asset and multi-asset portfolios.
 
 The project combines **Backtrader**, **Optuna**, and **Streamlit** to provide an interactive environment for strategy development, risk analysis, hyperparameter optimization, and out-of-sample evaluation.
