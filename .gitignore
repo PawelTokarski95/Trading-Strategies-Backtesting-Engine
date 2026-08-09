@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.idea/
+.vscode/
+
+optuna_studies.db
+optimization_results/
