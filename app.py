@@ -1,7 +1,7 @@
 import datetime
 import json
 import math
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 
 import pandas as pd
 import streamlit as st
@@ -83,6 +83,34 @@ def format_currency(
     return f"${float(value):,.{decimals}f}"
 
 
+def format_integer(value: Any) -> str:
+    if not is_finite_number(value):
+        return "N/A"
+
+    return f"{int(float(value)):,}"
+
+
+def render_metric_grid(
+    metrics: Sequence[Tuple[str, str]],
+    columns_per_row: int = 5,
+) -> None:
+    """Render metrics on a fixed grid so every row uses the same columns."""
+    if columns_per_row < 1:
+        raise ValueError("columns_per_row must be at least 1")
+
+    for start in range(0, len(metrics), columns_per_row):
+        row_metrics = metrics[start:start + columns_per_row]
+        columns = st.columns(columns_per_row, gap="small")
+
+        for index, column in enumerate(columns):
+            with column:
+                if index < len(row_metrics):
+                    label, value = row_metrics[index]
+                    st.metric(label, value)
+                else:
+                    st.empty()
+
+
 def render_backtest_results(
     results: Mapping[str, Any],
     evaluation_label: Optional[str] = None,
@@ -91,164 +119,132 @@ def render_backtest_results(
         st.info(evaluation_label)
 
 
+    holding_value = results.get("average_holding_bars")
+    average_holding = (
+        f"{float(holding_value):.1f} bars"
+        if is_finite_number(holding_value)
+        else "N/A"
+    )
+
+    # All result rows use the same five-column grid.
     st.subheader("Performance")
 
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric(
-            "Initial Capital",
-            format_currency(results.get("initial_cash")),
-        )
-
-    with col2:
-        st.metric(
-            "Final Capital",
-            format_currency(results.get("final_value")),
-        )
-
-    with col3:
-        st.metric(
-            "Total Return",
-            format_percent_decimal(
-                results.get("total_return")
+    render_metric_grid(
+        [
+            (
+                "Initial Capital",
+                format_currency(results.get("initial_cash")),
             ),
-        )
-
-    with col4:
-        st.metric(
-            "CAGR",
-            format_percent_decimal(
-                results.get("cagr")
+            (
+                "Final Capital",
+                format_currency(results.get("final_value")),
             ),
-        )
-
+            (
+                "Net P&L",
+                format_currency(results.get("net_pnl")),
+            ),
+            (
+                "Total Return",
+                format_percent_decimal(results.get("total_return")),
+            ),
+            (
+                "CAGR",
+                format_percent_decimal(results.get("cagr")),
+            ),
+        ],
+        columns_per_row=5,
+    )
 
     st.subheader("Risk")
 
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    with col1:
-        st.metric(
-            "Sharpe Ratio",
-            format_number(
-                results.get("sharpe")
+    render_metric_grid(
+        [
+            (
+                "Sharpe Ratio",
+                format_number(results.get("sharpe")),
             ),
-        )
-
-    with col2:
-        st.metric(
-            "Sortino Ratio",
-            format_number(
-                results.get("sortino")
+            (
+                "Sortino Ratio",
+                format_number(results.get("sortino")),
             ),
-        )
-
-    with col3:
-        st.metric(
-            "Max Drawdown",
-            format_percent_number(
-                results.get("max_drawdown")
+            (
+                "Max Drawdown",
+                format_percent_number(results.get("max_drawdown")),
             ),
-        )
-
-    with col4:
-        st.metric(
-            "Annual Volatility",
-            format_percent_decimal(
-                results.get("volatility")
+            (
+                "Annual Volatility",
+                format_percent_decimal(results.get("volatility")),
             ),
-        )
-
-    with col5:
-        st.metric(
-            "Calmar Ratio",
-            format_number(
-                results.get("calmar")
+            (
+                "Calmar Ratio",
+                format_number(results.get("calmar")),
             ),
-        )
-
+        ],
+        columns_per_row=5,
+    )
 
     st.subheader("Trading Statistics")
 
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric(
-            "Closed Trades",
-            int(results.get("total_trades", 0)),
-        )
-
-    with col2:
-        st.metric(
-            "Win Rate",
-            format_percent_decimal(
-                results.get("win_rate")
-            ),
-        )
-
-    with col3:
-        st.metric(
-            "Profit Factor",
-            format_number(
-                results.get("profit_factor")
-            ),
-        )
-
-    with col4:
-        st.metric(
-            "Net P&L",
-            format_currency(
-                results.get("net_pnl")
-            ),
-        )
-
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    with col1:
-        st.metric(
-            "Average Trade",
-            format_currency(
-                results.get("average_trade")
-            ),
-        )
-
-    with col2:
-        st.metric(
-            "Average Win",
-            format_currency(
-                results.get("average_win")
-            ),
-        )
-
-    with col3:
-        st.metric(
-            "Average Loss",
-            format_currency(
-                results.get("average_loss")
-            ),
-        )
-
-    with col4:
-        st.metric(
-            "Expectancy",
-            format_currency(
-                results.get("expectancy")
-            ),
-        )
-
-    with col5:
-        st.metric(
-            "Average Holding",
+    render_metric_grid(
+        [
             (
-                f"{float(results['average_holding_bars']):.1f} bars"
-                if is_finite_number(
-                    results.get("average_holding_bars")
-                )
-                else "N/A"
+                "Closed Trades",
+                format_integer(results.get("total_trades")),
             ),
-        )
+            (
+                "Winning Trades",
+                format_integer(results.get("winning_trades")),
+            ),
+            (
+                "Losing Trades",
+                format_integer(results.get("losing_trades")),
+            ),
+            (
+                "Win Rate",
+                format_percent_decimal(results.get("win_rate")),
+            ),
+            (
+                "Profit Factor",
+                format_number(results.get("profit_factor")),
+            ),
+            (
+                "Average Trade",
+                format_currency(results.get("average_trade")),
+            ),
+            (
+                "Average Win",
+                format_currency(results.get("average_win")),
+            ),
+            (
+                "Average Loss",
+                format_currency(results.get("average_loss")),
+            ),
+            (
+                "Expectancy",
+                format_currency(results.get("expectancy")),
+            ),
+            (
+                "Average Holding",
+                average_holding,
+            ),
+        ],
+        columns_per_row=5,
+    )
 
+    open_trades_value = results.get("open_trades")
+    open_trades_text = format_integer(open_trades_value)
+
+    if (
+        is_finite_number(open_trades_value)
+        and int(float(open_trades_value)) > 0
+    ):
+        st.warning(
+            f"Open trades at the end of the backtest: {open_trades_text}"
+        )
+    else:
+        st.caption(
+            f"Open trades at the end of the backtest: {open_trades_text}"
+        )
 
 
     equity_df = results.get("equity_curve")
@@ -333,30 +329,6 @@ def render_backtest_results(
     else:
         st.caption(
             "No yearly-return observations are available."
-        )
-
-
-
-    st.subheader("Trades")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(
-            "Winning Trades",
-            int(results.get("winning_trades", 0)),
-        )
-
-    with col2:
-        st.metric(
-            "Losing Trades",
-            int(results.get("losing_trades", 0)),
-        )
-
-    with col3:
-        st.metric(
-            "Open Trades at End",
-            int(results.get("open_trades", 0)),
         )
 
 
@@ -488,58 +460,49 @@ def render_optimization_results(
 
     st.subheader("Optimization Summary")
 
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric(
-            "Best Trial",
-            optimization.get(
-                "best_trial_number",
-                "N/A",
-            ),
-        )
-
-    with col2:
-        st.metric(
-            "Best CV Objective",
-            format_number(
-                optimization.get(
-                    "best_objective"
-                ),
-                decimals=4,
-            ),
-        )
-
     cv_summary = optimization.get(
         "cv_summary",
         {},
     )
 
-    with col3:
-        st.metric(
-            "Mean Fold Score",
-            format_number(
-                cv_summary.get(
-                    "mean_fold_score"
-                ),
-                decimals=4,
-            ),
-        )
-
-    with col4:
-        st.metric(
-            "Worst Fold Score",
-            format_number(
-                cv_summary.get(
-                    "worst_fold_score"
-                ),
-                decimals=4,
-            ),
-        )
-
     holdout_window = optimization.get(
         "holdout_window",
         {},
+    )
+
+    render_metric_grid(
+        [
+            (
+                "Best Trial",
+                format_integer(optimization.get("best_trial_number")),
+            ),
+            (
+                "Best CV Objective",
+                format_number(
+                    optimization.get("best_objective"),
+                    decimals=4,
+                ),
+            ),
+            (
+                "Mean Fold Score",
+                format_number(
+                    cv_summary.get("mean_fold_score"),
+                    decimals=4,
+                ),
+            ),
+            (
+                "Worst Fold Score",
+                format_number(
+                    cv_summary.get("worst_fold_score"),
+                    decimals=4,
+                ),
+            ),
+            (
+                "Holdout Bars",
+                format_integer(holdout_window.get("holdout_bars")),
+            ),
+        ],
+        columns_per_row=5,
     )
 
     if holdout_window:
